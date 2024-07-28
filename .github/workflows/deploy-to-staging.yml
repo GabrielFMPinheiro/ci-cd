@@ -5,10 +5,9 @@ on:
     types: [labeled, synchronize, reopened, closed]
 
 permissions:
-  id-token: write
-  contents: read
-  issues: write
   pull-requests: write
+  contents: write
+  issues: write
 
 jobs:
   deploy:
@@ -16,74 +15,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Install GitHub CLI and jq
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gh jq
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
 
-    # - name: Check GitHub Token
-    #   env:
-    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   run: |
-    #     if [ -z "$GH_TOKEN" ]; then
-    #       echo "GITHUB_TOKEN is not set"
-    #       exit 1
-    #     else
-    #       echo "GITHUB_TOKEN is set"
-    #     fi
+      - name: Install dependencies
+        run: npm install @actions/github@5.0.1 axios
 
-    # - name: Authenticate with GitHub CLI
-    #   env:
-    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   run: |
-    #     gh auth login --with-token
-    - name: Debug GitHub Context
-      run: |
-        echo "GitHub Event: ${{ toJson(github.event) }}"
+      - name: Check if PR has using:staging label
+        id: check-label
+        run: |
+          node -e "
+            const github = require('@actions/github');
+            const context = github.context;
 
-    - name: Check if PR has using:staging label
-      id: check-label
-      env:
-        PR_NUMBER: ${{ github.event.pull_request.number }}
-        GH_TOKEN: ${{ github.PAT_TOKEN }}
-      run: |
-        LABELSTESTE=$(gh pr view 1)
-      # LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
-      # echo "Labels: $LABELS"
-      # if echo "$LABELS" | grep -q "using:staging"; then
-      #   echo "has_label=true" >> $GITHUB_ENV
-      # else
-      #   echo "has_label=false" >> $GITHUB_ENV
-      # fi
-
-    # - name: Deploy if labeled
-    #   if: env.has_label == 'true'
-    #   run: |
-    #     # Fetch all PRs with the using:staging label
-    #     PRS=$(gh pr list --label using:staging --json number --jq '.[].number')
-
-    #     for PR in $PRS; do
-    #       echo "Fetching and merging PR #$PR"
-    #       git fetch origin pull/$PR/head:pr-$PR || exit 1
-    #       git merge pr-$PR --no-commit || { 
-    #         echo "Conflict detected in PR #$PR";
-    #         gh pr comment $PR --body "Conflict detected during merge. Please resolve conflicts.";
-    #         exit 1;
-    #       }
-    #     done
-
-  cleanup:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-
-    - name: Cleanup staging
-      run: |
-        # Your cleanup logic here
-        echo "Cleaning up after PR #${{ github.event.pull_request.number }} was merged."
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            if (labels.includes('using:staging')) {
+              console.log('::set-output name=has_label::true');
+            } else {
+              console.log('::set-output name=has_label::false');
+            }
+          "
