@@ -76,6 +76,8 @@ jobs:
                   execSync(`git fetch origin pull/${pr.number}/head:pr-${pr.number}`);
                   try {
                     execSync(`git merge pr-${pr.number} --no-commit --allow-unrelated-histories`);
+                    execSync(`git commit -m "commit"`);
+
                     console.log(`Merged PR #${pr.number}`);
                   } catch (err) {
                     console.error(`Conflict detected in PR #${pr.number}`, err);
