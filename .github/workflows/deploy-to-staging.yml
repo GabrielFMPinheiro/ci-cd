@@ -1,0 +1,50 @@
+name: Deploy to Staging
+description: Deploy PRs with a specific label to staging.
+inputs:
+  ecr-repo:
+    description: 'ECR repository URL'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install GitHub CLI and jq
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gh jq
+
+    - name: Authenticate with GitHub CLI
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo $GH_TOKEN | gh auth login --with-token
+        unset GH_TOKEN
+
+    - name: Check if PR has using:staging label
+      id: check-label
+      run: |
+        PR_NUMBER=${{ github.event.pull_request.number }}
+        LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+        if echo "$LABELS" | grep -q "using:staging"; then
+          echo "has_label=true" >> $GITHUB_ENV
+        else
+          echo "has_label=false" >> $GITHUB_ENV
+        fi
+
+    - name: Deploy if labeled
+      if: env.has_label == 'true'
+      run: |
+        # Fetch all PRs with the using:staging label
+        PRS=$(gh pr list --label using:staging --json number --jq '.[].number')
+
+        for PR in $PRS; do
+          echo "Fetching and merging PR #$PR"
+          git fetch origin pull/$PR/head:pr-$PR || exit 1
+          git merge pr-$PR --no-commit || { 
+            echo "Conflict detected in PR #$PR";
+            gh pr comment $PR --body "Conflict detected during merge. Please resolve conflicts.";
+            exit 1;
+          }
+        done

@@ -1,0 +1,16 @@
+name: Deploy to Staging
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened, closed]
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Staging
+        uses: ./.github/actions/deploy-to-staging
+        with:
+          ecr-repo: '<your-aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/my-app'
