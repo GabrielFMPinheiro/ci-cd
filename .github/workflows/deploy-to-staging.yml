@@ -48,7 +48,7 @@ jobs:
       id: check-label
       env:
         PR_NUMBER: ${{ github.event.pull_request.number }}
-        GH_TOKEN: ${{ github.TOKEN }}
+        GH_TOKEN: ${{ github.PAT_TOKEN }}
       run: |
         LABELSTESTE=$(gh pr view 1)
       # LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
