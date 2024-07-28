@@ -13,7 +13,6 @@ permissions:
 
 jobs:
   merge-and-save:
-    if: github.event.pull_request.merged == false
     runs-on: ubuntu-latest
 
     env:
@@ -143,10 +142,3 @@ jobs:
 
             main();
           "
-
-      - name: Clean up merge-temp branch
-        if: steps.check-label.outputs.has_label == 'true'
-        run: |
-          git checkout main
-          git branch -D merge-temp || true
-          git push origin --delete merge-temp || true
