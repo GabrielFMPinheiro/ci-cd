@@ -113,9 +113,6 @@ jobs:
 
                 console.log('Merging successful PRs with current PR:', successfulPRs);
 
-                // Merge the current PR
-                execSync('git merge origin/${CURRENT_BRANCH} --no-commit');
-
                 for (const prNumber of successfulPRs) {
                   console.log(\`Merging PR #\${prNumber}\`);
                   execSync(\`git fetch origin pull/\${prNumber}/head:pr-\${prNumber}\`);
