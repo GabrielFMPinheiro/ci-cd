@@ -21,15 +21,15 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '14'
-
-      - name: Install dependencies
-        run: npm install axios @actions/github
+          node-version: '16'
 
       - name: Set up Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install dependencies
+        run: npm install @actions/github@5.0.1 axios
 
       - name: Check if PR has using:staging label
         id: check-label
@@ -48,7 +48,6 @@ jobs:
               console.log('::set-output name=has_label::false');
             }
           "
-
       - name: Merge and save if labeled
         if: steps.check-label.outputs.has_label == 'true'
         env:
