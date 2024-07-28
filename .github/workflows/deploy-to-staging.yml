@@ -34,19 +34,20 @@ jobs:
       - name: Check if PR has using:staging label
         id: check-label
         run: |
-          PR_NUMBER=$(jq -r .pull_request.number < "$GITHUB_EVENT_PATH")
-          LABELS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" | jq -r '.[].name')
+          node -e "
+            const github = require('@actions/github');
+            const context = github.context;
 
-          echo "Labels on PR: $LABELS"
-
-          if [[ "$LABELS" == *"using:staging"* ]]; then
-            echo "PR has using:staging label"
-            echo "::set-output name=has_label::true"
-          else
-            echo "PR does not have using:staging label"
-            echo "::set-output name=has_label::false"
-          fi
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            console.log('Labels on PR:', labels);
+            if (labels.includes('using:staging')) {
+              console.log('PR has using:staging label');
+              console.log('::set-output name=has_label::true');
+            } else {
+              console.log('PR does not have using:staging label');
+              console.log('::set-output name=has_label::false');
+            }
+          "
 
       - name: Merge and save if labeled
         if: steps.check-label.outputs.has_label == 'true'
