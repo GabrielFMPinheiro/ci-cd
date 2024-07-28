@@ -34,35 +34,38 @@ jobs:
     #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   run: |
     #     gh auth login --with-token
+    - name: Debug GitHub Context
+      run: |
+        echo "GitHub Event: ${{ toJson(github.event) }}"
 
     - name: Check if PR has using:staging label
       id: check-label
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
-        PR_NUMBER=${{ github.event.pull_request.number }}
         LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+        echo "Labels: $LABELS"
         if echo "$LABELS" | grep -q "using:staging"; then
           echo "has_label=true" >> $GITHUB_ENV
         else
           echo "has_label=false" >> $GITHUB_ENV
         fi
 
-    - name: Deploy if labeled
-      if: env.has_label == 'true'
-      run: |
-        # Fetch all PRs with the using:staging label
-        PRS=$(gh pr list --label using:staging --json number --jq '.[].number')
+    # - name: Deploy if labeled
+    #   if: env.has_label == 'true'
+    #   run: |
+    #     # Fetch all PRs with the using:staging label
+    #     PRS=$(gh pr list --label using:staging --json number --jq '.[].number')
 
-        for PR in $PRS; do
-          echo "Fetching and merging PR #$PR"
-          git fetch origin pull/$PR/head:pr-$PR || exit 1
-          git merge pr-$PR --no-commit || { 
-            echo "Conflict detected in PR #$PR";
-            gh pr comment $PR --body "Conflict detected during merge. Please resolve conflicts.";
-            exit 1;
-          }
-        done
+    #     for PR in $PRS; do
+    #       echo "Fetching and merging PR #$PR"
+    #       git fetch origin pull/$PR/head:pr-$PR || exit 1
+    #       git merge pr-$PR --no-commit || { 
+    #         echo "Conflict detected in PR #$PR";
+    #         gh pr comment $PR --body "Conflict detected during merge. Please resolve conflicts.";
+    #         exit 1;
+    #       }
+    #     done
 
   cleanup:
     if: github.event.pull_request.merged == true
