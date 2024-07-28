@@ -1,4 +1,4 @@
-name: Merge PRs with Staging Label
+name: Deploy to Staging
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   issues: write
 
 jobs:
-  merge-and-save:
+  deploy:
     if: github.event.pull_request.merged == false
     runs-on: ubuntu-latest
 
@@ -44,12 +44,14 @@ jobs:
             }
           "
 
-      - name: Merge and save if labeled
+      - name: Deploy if labeled
         if: steps.check-label.outputs.has_label == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ECR_REPO: ${{ secrets.ECR_REPO }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          echo "Starting merge process"
+          echo "Starting deployment"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           node << 'EOF'
@@ -71,30 +73,6 @@ jobs:
                 const prs = response.data.filter(pr => pr.labels.some(label => label.name === 'using:staging'));
 
                 for (const pr of prs) {
-                  console.log(`Fetching status checks for PR #${pr.number}`);
-                  const statusResponse = await axios.get(`https://api.github.com/repos/${{ github.repository }}/commits/${pr.head.sha}/status`, {
-                    headers: {
-                      Authorization: `token ${process.env.GITHUB_TOKEN}`,
-                      Accept: 'application/vnd.github.v3+json',
-                    }
-                  });
-                  const statuses = statusResponse.data.statuses;
-                  const failedChecks = statuses.filter(status => status.state !== 'success');
-                  
-                  if (failedChecks.length > 0) {
-                    const failedChecksMessage = `The following status checks failed for PR #${pr.number}:\n` + failedChecks.map(check => `- ${check.context}: ${check.state}`).join('\n');
-                    console.error(failedChecksMessage);
-                    await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
-                      body: failedChecksMessage
-                    }, {
-                      headers: {
-                        Authorization: `token ${process.env.GITHUB_TOKEN}`,
-                        Accept: 'application/vnd.github.v3+json',
-                      }
-                    });
-                    continue; // Skip this PR
-                  }
-
                   console.log(`Fetching and merging PR #${pr.number}`);
                   execSync(`git fetch origin pull/${pr.number}/head:pr-${pr.number}`);
                   try {
@@ -102,9 +80,8 @@ jobs:
                     console.log(`Merged PR #${pr.number}`);
                   } catch (err) {
                     console.error(`Conflict detected in PR #${pr.number}`, err);
-                    const conflictMessage = `Conflict detected during merge with the following PRs:\n${err.message}`;
-                    await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
-                      body: conflictMessage
+                    await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${process.env.PR_NUMBER}/comments`, {
+                      body: 'Conflict detected during merge. Please resolve conflicts.'
                     }, {
                       headers: {
                         Authorization: `token ${process.env.GITHUB_TOKEN}`,
@@ -115,17 +92,9 @@ jobs:
                   }
                 }
 
-                // Conclude the merge
-                execSync('git commit -m "Merge all PRs with using:staging label"');
-                console.log('Merge concluded successfully');
-
-                // Push to a temporary branch
-                const tempBranch = `staging-merge-${Date.now()}`;
-                execSync(`git checkout -b ${tempBranch}`);
-                execSync(`git push origin ${tempBranch}`);
-                console.log(`Merged state pushed to branch ${tempBranch}`);
+                console.log('Deployment completed successfully');
               } catch (error) {
-                console.error('Error during merge process:', error);
+                console.error('Error during deployment:', error);
                 process.exit(1);
               }
             })();
