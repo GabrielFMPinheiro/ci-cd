@@ -18,20 +18,20 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gh jq
 
-    - name: Check GitHub Token
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        if [ -z "$GH_TOKEN" ]; then
-          echo "GITHUB_TOKEN is not set"
-          exit 1
-        else
-          echo "GITHUB_TOKEN is set"
-        fi
+    # - name: Check GitHub Token
+    #   env:
+    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     if [ -z "$GH_TOKEN" ]; then
+    #       echo "GITHUB_TOKEN is not set"
+    #       exit 1
+    #     else
+    #       echo "GITHUB_TOKEN is set"
+    #     fi
 
     - name: Authenticate with GitHub CLI
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.TOKEN }}
       run: |
         echo $GH_TOKEN | gh auth login --with-token
         gh auth setup-git
