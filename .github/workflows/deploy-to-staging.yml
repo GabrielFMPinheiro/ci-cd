@@ -75,8 +75,7 @@ jobs:
                     execSync(`git merge pr-${pr.number} --no-commit`);
                     console.log(`Merged PR #${pr.number}`);
                   } catch (err) {
-                    console.error(`Conflict detected in PR #${pr.number}`, err);
-                    await axios.post(\`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
+                    await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
                       body: 'Conflict detected during merge. Please resolve conflicts.'
                     }, {
                       headers: {
