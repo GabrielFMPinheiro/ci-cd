@@ -42,7 +42,7 @@ jobs:
       id: check-label
       env:
         PR_NUMBER: ${{ github.event.pull_request.number }}
-        GH_TOKEN: ${{ github.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.TOKEN }}
       run: |
         LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
         echo "Labels: $LABELS"
