@@ -21,117 +21,118 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '16'
+          node-version: '14'
 
       - name: Install dependencies
-        run: npm install @actions/github@5.0.1 axios
+        run: npm install axios
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Check if PR has using:staging label
         id: check-label
         run: |
-          node -e "
-            const github = require('@actions/github');
-            const context = github.context;
+          PR_NUMBER=$(jq -r .pull_request.number < "$GITHUB_EVENT_PATH")
+          LABELS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" | jq -r '.[].name')
 
-            const labels = context.payload.pull_request.labels.map(label => label.name);
-            console.log('Labels on PR:', labels);
-            if (labels.includes('using:staging')) {
-              console.log('PR has using:staging label');
-              console.log('::set-output name=has_label::true');
-            } else {
-              console.log('PR does not have using:staging label');
-              console.log('::set-output name=has_label::false');
-            }
-          "
+          echo "Labels on PR: $LABELS"
+
+          if [[ "$LABELS" == *"using:staging"* ]]; then
+            echo "PR has using:staging label"
+            echo "::set-output name=has_label::true"
+          else
+            echo "PR does not have using:staging label"
+            echo "::set-output name=has_label::false"
+          fi
 
       - name: Merge and save if labeled
         if: steps.check-label.outputs.has_label == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Starting merge process"
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          node << 'EOF'
-            const { execSync } = require('child_process');
-            const github = require('@actions/github');
+          node -e "
             const axios = require('axios');
+            const fs = require('fs');
+            const { execSync } = require('child_process');
 
-            (async () => {
+            const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
+            const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+            const PR_NUMBER = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH)).pull_request.number;
+            const CURRENT_BRANCH = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH)).pull_request.head.ref;
+
+            const headers = {
+              'Authorization': \`token \${GITHUB_TOKEN}\`,
+              'Accept': 'application/vnd.github.v3+json'
+            };
+
+            async function getPRs() {
+              const response = await axios.get(\`https://api.github.com/repos/\${GITHUB_REPOSITORY}/pulls\`, { headers });
+              return response.data.filter(pr => pr.labels.some(label => label.name === 'using:staging'));
+            }
+
+            async function getCheckRuns(commitSha) {
+              const response = await axios.get(\`https://api.github.com/repos/\${GITHUB_REPOSITORY}/commits/\${commitSha}/check-runs\`, { headers });
+              return response.data.check_runs;
+            }
+
+            async function main() {
               try {
-                const context = github.context;
-                const currentBranch = context.payload.pull_request.head.ref;
+                execSync('git fetch --all');
 
-                // Fetch all PRs with the using:staging label
-                console.log('Fetching PRs with using:staging label');
-                const response = await axios.get(`https://api.github.com/repos/${{ github.repository }}/pulls`, {
-                  headers: {
-                    Authorization: `token ${process.env.GITHUB_TOKEN}`,
-                    Accept: 'application/vnd.github.v3+json',
-                  }
-                });
-                const prs = response.data.filter(pr => pr.labels.some(label => label.name === 'using:staging'));
+                const prs = await getPRs();
+                console.log('Fetched PRs with using:staging label:', prs);
 
                 const successfulPRs = [];
+
                 for (const pr of prs) {
-                  if (pr.head.ref === currentBranch) {
-                    console.log(`Skipping current PR #${pr.number}`);
+                  if (pr.head.ref === CURRENT_BRANCH) {
+                    console.log(\`Skipping current PR #\${pr.number}\`);
                     continue;
                   }
 
-                  console.log(`Fetching status checks for PR #${pr.number}`);
-                  const statusResponse = await axios.get(`https://api.github.com/repos/${{ github.repository }}/commits/${pr.head.sha}/check-runs`, {
-                    headers: {
-                      Authorization: `token ${process.env.GITHUB_TOKEN}`,
-                      Accept: 'application/vnd.github.v3+json',
-                    }
-                  });
-                  const checkRuns = statusResponse.data.check_runs;
+                  const checkRuns = await getCheckRuns(pr.head.sha);
                   const failedChecks = checkRuns.filter(check => check.conclusion !== 'success');
-                  
+
                   if (failedChecks.length > 0) {
-                    const failedChecksMessage = `The following status checks failed for PR #${pr.number}:\n` + failedChecks.map(check => `- ${check.name}: ${check.conclusion}`).join('\n');
-                    console.error(failedChecksMessage);
-                    await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
-                      body: failedChecksMessage
-                    }, {
-                      headers: {
-                        Authorization: `token ${process.env.GITHUB_TOKEN}`,
-                        Accept: 'application/vnd.github.v3+json',
-                      }
-                    });
-                  } else {
-                    successfulPRs.push(pr);
+                    const failedCheckNames = failedChecks.map(check => \`\${check.name}: \${check.conclusion}\`).join('\\n');
+                    console.log(\`PR #\${pr.number} has failed checks:\\n\${failedCheckNames}\`);
+
+                    await axios.post(\`https://api.github.com/repos/\${GITHUB_REPOSITORY}/issues/\${pr.number}/comments\`, {
+                      body: \`The following status checks failed for PR #\${pr.number}:\\n\${failedCheckNames}\`
+                    }, { headers });
+
+                    continue;
                   }
+
+                  successfulPRs.push(pr.number);
                 }
 
-                // Fetch and merge successful PRs
-                for (const pr of successfulPRs) {
-                  execSync(`git fetch origin pull/${pr.number}/head:pr-${pr.number}`);
+                console.log('Merging successful PRs:', successfulPRs);
+
+                for (const prNumber of successfulPRs) {
+                  console.log(\`Merging PR #\${prNumber}\`);
+                  execSync(\`git fetch origin pull/\${prNumber}/head:pr-\${prNumber}\`);
                   try {
-                    execSync(`git merge pr-${pr.number} --no-commit --allow-unrelated-histories`);
-                    execSync(`git commit -m "teste"`);
-                  } catch (err) {
-                    console.error(`Conflict detected in PR #${pr.number}`, err);
-                    const conflictMessage = `Conflict detected during merge with the following PRs:\n${err.message}`;
-                    await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
-                      body: conflictMessage
-                    }, {
-                      headers: {
-                        Authorization: `token ${process.env.GITHUB_TOKEN}`,
-                        Accept: 'application/vnd.github.v3+json',
-                      }
-                    });
-                    process.exit(1);
+                    execSync(\`git merge pr-\${prNumber} --no-commit --allow-unrelated-histories\`);
+                    execSync('git commit -m "Merge all successful PRs with using:staging label"');
+                  } catch (error) {
+                    console.error(\`Conflict detected in PR #\${prNumber}\`);
+                    await axios.post(\`https://api.github.com/repos/\${GITHUB_REPOSITORY}/issues/\${prNumber}/comments\`, {
+                      body: \`Conflict detected during merge with PR #\${prNumber}\`
+                    }, { headers });
+                    throw error;
                   }
                 }
 
                 console.log('Merge concluded successfully');
-
               } catch (error) {
                 console.error('Error during merge process:', error);
                 process.exit(1);
               }
-            })();
-          EOF
+            }
+
+            main();
+          "
