@@ -53,6 +53,11 @@ jobs:
           echo "Starting deployment"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Ensure no pending merge states
+          git merge --abort || true
+          git reset --merge || true
+          
           node << 'EOF'
             const { execSync } = require('child_process');
             const github = require('@actions/github');
