@@ -11,6 +11,6 @@ jobs:
 
     steps:
       - name: Deploy to Staging
-        uses: ./.github/actions/deploy-to-staging.yml
+        uses: ./deploy-to-staging.yml
         # with:
         #   ecr-repo: '<your-aws-account-id>.dkr.ecr.us-east-1.amazonaws.com/my-app'
