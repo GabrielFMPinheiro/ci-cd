@@ -45,13 +45,13 @@ jobs:
         GH_TOKEN: ${{ github.TOKEN }}
       run: |
         LABELSTESTE=$(gh pr view ${{ github.event.pull_request.number }})
-        LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
-        echo "Labels: $LABELS"
-        if echo "$LABELS" | grep -q "using:staging"; then
-          echo "has_label=true" >> $GITHUB_ENV
-        else
-          echo "has_label=false" >> $GITHUB_ENV
-        fi
+      # LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+      # echo "Labels: $LABELS"
+      # if echo "$LABELS" | grep -q "using:staging"; then
+      #   echo "has_label=true" >> $GITHUB_ENV
+      # else
+      #   echo "has_label=false" >> $GITHUB_ENV
+      # fi
 
     # - name: Deploy if labeled
     #   if: env.has_label == 'true'
