@@ -117,7 +117,7 @@ jobs:
                   execSync(\`git fetch origin pull/\${prNumber}/head:pr-\${prNumber}\`);
                   try {
                     execSync(\`git merge pr-\${prNumber} --no-commit --allow-unrelated-histories\`);
-                    execSync(\`git commit -m "Merge all successful PRs with using:staging label"\`);
+                    execSync(\`git commit -m "\Merge all successful PRs with using:staging label\"\`);
                   } catch (error) {
                     console.error(\`Conflict detected in PR #\${prNumber}\`);
                     await axios.post(\`https://api.github.com/repos/\${GITHUB_REPOSITORY}/issues/\${prNumber}/comments\`, {
