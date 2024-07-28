@@ -40,3 +40,46 @@ jobs:
               console.log('::set-output name=has_label::false');
             }
           "
+
+      - name: Deploy if labeled
+        if: steps.check-label.outputs.has_label == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node -e "
+            const { execSync } = require('child_process');
+            const github = require('@actions/github');
+            const axios = require('axios');
+
+            // Fetch all PRs with the using:staging label
+            const fetchPRs = async () => {
+              const response = await axios.get('https://api.github.com/repos/${{ github.repository }}/pulls', {
+                headers: {
+                  Authorization: `token ${process.env.GITHUB_TOKEN}`,
+                  Accept: 'application/vnd.github.v3+json',
+                }
+              });
+              return response.data.filter(pr => pr.labels.some(label => label.name === 'using:staging'));
+            };
+
+            const prs = await fetchPRs();
+
+            for (const pr of prs) {
+              console.log(`Fetching and merging PR #${pr.number}`);
+              execSync(`git fetch origin pull/${pr.number}/head:pr-${pr.number}`);
+              try {
+                execSync(`git merge pr-${pr.number} --no-commit`);
+              } catch (err) {
+                console.log(`Conflict detected in PR #${pr.number}`);
+                await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
+                  body: 'Conflict detected during merge. Please resolve conflicts.'
+                }, {
+                  headers: {
+                    Authorization: `token ${process.env.GITHUB_TOKEN}`,
+                    Accept: 'application/vnd.github.v3+json',
+                  }
+                });
+                process.exit(1);
+              }
+            }
+          "
