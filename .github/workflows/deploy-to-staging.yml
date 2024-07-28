@@ -1,0 +1,105 @@
+name: Deploy to Staging
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened, closed]
+
+permissions:
+  pull-requests: write
+  contents: write
+  issues: write
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install @actions/github@5.0.1 axios
+
+      - name: Check if PR has using:staging label
+        id: check-label
+        run: |
+          node -e "
+            const github = require('@actions/github');
+            const context = github.context;
+
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            console.log('Labels on PR:', labels);
+            if (labels.includes('using:staging')) {
+              console.log('PR has using:staging label');
+              console.log('::set-output name=has_label::true');
+            } else {
+              console.log('PR does not have using:staging label');
+              console.log('::set-output name=has_label::false');
+            }
+          "
+
+      - name: Deploy if labeled
+        if: steps.check-label.outputs.has_label == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ECR_REPO: ${{ secrets.ECR_REPO }}
+        run: |
+          echo "Starting deployment"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          node << 'EOF'
+            const { execSync } = require('child_process');
+            const github = require('@actions/github');
+            const axios = require('axios');
+
+            (async () => {
+              try {
+                // Fetch all PRs with the using:staging label
+                console.log('Fetching PRs with using:staging label');
+                const response = await axios.get(`https://api.github.com/repos/${{ github.repository }}/pulls`, {
+                  headers: {
+                    Authorization: `token ${process.env.GITHUB_TOKEN}`,
+                    Accept: 'application/vnd.github.v3+json',
+                  }
+                });
+                console.log('PRs fetched:', response.data);
+                const prs = response.data.filter(pr => pr.labels.some(label => label.name === 'using:staging'));
+
+                for (const pr of prs) {
+                  console.log(`Fetching and merging PR #${pr.number}`);
+                  execSync(`git fetch origin pull/${pr.number}/head:pr-${pr.number}`);
+                  try {
+                    execSync(`git merge pr-${pr.number} --no-commit --allow-unrelated-histories`);
+                    // Conclude the merge
+                execSync('git commit -m "Merge all PRs with using:staging label"');
+                    console.log(`Merged PR #${pr.number}`);
+                  } catch (err) {
+                    console.error(`Conflict detected in PR #${pr.number}`, err);
+                    await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
+                      body: 'Conflict detected during merge. Please resolve conflicts.'
+                    }, {
+                      headers: {
+                        Authorization: `token ${process.env.GITHUB_TOKEN}`,
+                        Accept: 'application/vnd.github.v3+json',
+                      }
+                    });
+                    process.exit(1);
+                  }
+                }
+
+
+                console.log('Merge concluded successfully');
+
+                console.log('Deployment completed successfully');
+              } catch (error) {
+                console.error('Error during deployment:', error);
+                process.exit(1);
+              }
+            })();
+          EOF
