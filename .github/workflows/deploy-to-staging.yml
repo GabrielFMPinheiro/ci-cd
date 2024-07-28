@@ -5,8 +5,10 @@ on:
     types: [labeled, synchronize, reopened, closed]
 
 permissions:
+  id-token: write
+  contents: read
+  issues: write
   pull-requests: write
-  contents: write
 
 jobs:
   deploy:
