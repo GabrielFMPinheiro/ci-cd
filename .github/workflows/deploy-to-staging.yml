@@ -57,6 +57,10 @@ jobs:
           # Ensure no pending merge states
           git merge --abort || true
           git reset --merge || true
+
+          # Clean up any remaining merge conflicts
+          git reset --hard || true
+          git clean -fd || true
           
           node << 'EOF'
             const { execSync } = require('child_process');
