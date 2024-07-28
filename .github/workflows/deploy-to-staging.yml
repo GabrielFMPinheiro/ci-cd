@@ -112,6 +112,7 @@ jobs:
                     execSync(`git commit -m "teste"`);
                   } catch (err) {
                     console.error(`Conflict detected in PR #${pr.number}`, err);
+                    execSync('git merge --abort');
                     const conflictMessage = `Conflict detected during merge with the following PRs:\n${err.message}`;
                     await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
                       body: conflictMessage
