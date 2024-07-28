@@ -29,13 +29,13 @@ jobs:
     #       echo "GITHUB_TOKEN is set"
     #     fi
 
-    - name: Authenticate with GitHub CLI
-      env:
-        GH_TOKEN: ${{ secrets.TOKEN }}
-      run: |
-        echo $GH_TOKEN | gh auth login --with-token
-        gh auth setup-git
-        unset GH_TOKEN
+    # - name: Authenticate with GitHub CLI
+    #   env:
+    #     GH_TOKEN: ${{ secrets.TOKEN }}
+    #   run: |
+    #     echo $GH_TOKEN | gh auth login --with-token
+    #     gh auth setup-git
+    #     unset GH_TOKEN
 
     - name: Check if PR has using:staging label
       id: check-label
