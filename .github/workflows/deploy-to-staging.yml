@@ -8,6 +8,8 @@ permissions:
   pull-requests: write
   contents: write
   issues: write
+  checks: write
+  statuses: write
 
 jobs:
   merge-and-save:
