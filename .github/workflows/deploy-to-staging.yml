@@ -71,7 +71,6 @@ jobs:
                     Accept: 'application/vnd.github.v3+json',
                   }
                 });
-                console.log('PRs fetched:', response.data);
                 const prs = response.data.filter(pr => pr.labels.some(label => label.name === 'using:staging'));
 
                 const successfulPRs = [];
@@ -81,7 +80,6 @@ jobs:
                     continue;
                   }
 
-                  console.log(`Fetching status checks for PR #${pr.number}`);
                   const statusResponse = await axios.get(`https://api.github.com/repos/${{ github.repository }}/commits/${pr.head.sha}/status`, {
                     headers: {
                       Authorization: `token ${process.env.GITHUB_TOKEN}`,
@@ -109,11 +107,9 @@ jobs:
 
                 // Fetch and merge successful PRs
                 for (const pr of successfulPRs) {
-                  console.log(`Fetching and merging PR #${pr.number}`);
                   execSync(`git fetch origin pull/${pr.number}/head:pr-${pr.number}`);
                   try {
                     execSync(`git merge pr-${pr.number} --no-commit --allow-unrelated-histories`);
-                    console.log(`Merged PR #${pr.number}`);
                   } catch (err) {
                     console.error(`Conflict detected in PR #${pr.number}`, err);
                     const conflictMessage = `Conflict detected during merge with the following PRs:\n${err.message}`;
