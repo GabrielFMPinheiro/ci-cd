@@ -91,7 +91,7 @@ jobs:
                   const failedChecks = statusResponse.data.filter(check => check.conclusion !== 'success');
                   
                   if (failedChecks.length > 0) {
-                    cconst failedCheckNames = failedChecks.map(check => \`\${check.name}: \${check.conclusion}\`).join('\\n');
+                    const failedCheckNames = failedChecks.map(check => \`\${check.name}: \${check.conclusion}\`).join('\\n');
                     console.error(failedChecksMessage);
                     await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
                       body: failedChecksMessage
