@@ -76,6 +76,8 @@ jobs:
                   execSync(`git fetch origin pull/${pr.number}/head:pr-${pr.number}`);
                   try {
                     execSync(`git merge pr-${pr.number} --no-commit --allow-unrelated-histories`);
+                    execSync(`git commit -m "commit"`);
+
                     console.log(`Merged PR #${pr.number}`);
                   } catch (err) {
                     console.error(`Conflict detected in PR #${pr.number}`, err);
@@ -90,6 +92,11 @@ jobs:
                     process.exit(1);
                   }
                 }
+
+                const tempBranch = `staging-merge-${Date.now()}`;
+                execSync(`git checkout -b ${tempBranch}`);
+                execSync(`git push origin ${tempBranch}`);
+                console.log(`Merged state pushed to branch ${tempBranch}`);
 
                 console.log('Deployment completed successfully');
               } catch (error) {
