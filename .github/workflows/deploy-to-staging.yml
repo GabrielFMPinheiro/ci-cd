@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [labeled, synchronize, reopened, closed]
 
+permissions:
+  pull-requests: write
+  contents: write
+
 jobs:
   deploy:
     if: github.event.pull_request.merged == false
