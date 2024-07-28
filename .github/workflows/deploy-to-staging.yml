@@ -110,6 +110,7 @@ jobs:
                   execSync(`git fetch origin pull/${pr.number}/head:pr-${pr.number}`);
                   try {
                     execSync(`git merge pr-${pr.number} --no-commit --allow-unrelated-histories`);
+                    execSync(`git commit -m "teste"`);
                   } catch (err) {
                     console.error(`Conflict detected in PR #${pr.number}`, err);
                     const conflictMessage = `Conflict detected during merge with the following PRs:\n${err.message}`;
