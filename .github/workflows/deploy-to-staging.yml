@@ -80,17 +80,18 @@ jobs:
                     continue;
                   }
 
-                  const statusResponse = await axios.get(`https://api.github.com/repos/${{ github.repository }}/commits/${pr.head.sha}/status`, {
+                  console.log(`Fetching status checks for PR #${pr.number}`);
+                  const statusResponse = await axios.get(`https://api.github.com/repos/${{ github.repository }}/commits/${pr.head.sha}/check-runs`, {
                     headers: {
                       Authorization: `token ${process.env.GITHUB_TOKEN}`,
                       Accept: 'application/vnd.github.v3+json',
                     }
                   });
-                  const statuses = statusResponse.data.statuses;
-                  const failedChecks = statuses.filter(status => status.state !== 'success');
+                  const checkRuns = statusResponse.data.check_runs;
+                  const failedChecks = checkRuns.filter(check => check.conclusion !== 'success');
                   
                   if (failedChecks.length > 0) {
-                    const failedChecksMessage = `The following status checks failed for PR #${pr.number}:\n` + failedChecks.map(check => `- ${check.context}: ${check.state}`).join('\n');
+                    const failedChecksMessage = `The following status checks failed for PR #${pr.number}:\n` + failedChecks.map(check => `- ${check.name}: ${check.conclusion}`).join('\n');
                     console.error(failedChecksMessage);
                     await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
                       body: failedChecksMessage
