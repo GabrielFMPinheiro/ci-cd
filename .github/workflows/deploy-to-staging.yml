@@ -126,8 +126,6 @@ jobs:
                   }
                 }
 
-                // Conclude the merge
-                execSync('git commit -m "Merge all successful PRs with using:staging label"');
                 console.log('Merge concluded successfully');
 
               } catch (error) {
