@@ -121,6 +121,8 @@ jobs:
                   execSync(\`git fetch origin pull/\${prNumber}/head:pr-\${prNumber}\`);
                   try {
                     execSync(\`git merge pr-\${prNumber} --no-commit --allow-unrelated-histories\`);
+                    execSync('git add .');
+                    execSync('git commit -m \"Merged PRs with current PR\"');
                   } catch (error) {
                     console.error(\`Conflict detected in PR #\${prNumber}\`);
                     await axios.post(\`https://api.github.com/repos/\${GITHUB_REPOSITORY}/issues/\${prNumber}/comments\`, {
@@ -133,8 +135,6 @@ jobs:
                 }
 
                 // Commit and push changes
-                execSync('git add .');
-                execSync('git commit -m \"Merged PRs with current PR\"');
                 execSync('git push origin merge-temp');
 
                 console.log('Merge concluded successfully');
