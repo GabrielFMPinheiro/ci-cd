@@ -143,10 +143,3 @@ jobs:
 
             main();
           "
-
-      - name: Clean up merge-temp branch
-        if: steps.check-label.outputs.has_label == 'true'
-        run: |
-          git checkout main
-          git branch -D merge-temp || true
-          git push origin --delete merge-temp || true
