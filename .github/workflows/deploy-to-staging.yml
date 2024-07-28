@@ -27,11 +27,17 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Install Node.js and dependencies
+        run: |
+          curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+          sudo apt-get install -y nodejs
+          npm install axios
+
       - name: Create and Checkout merge-temp branch
         run: |
           git fetch origin
           git checkout -b merge-temp || git checkout merge-temp
-          
+
       - name: Check if PR has using:staging label
         id: check-label
         run: |
