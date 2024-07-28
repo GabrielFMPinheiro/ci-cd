@@ -126,7 +126,7 @@ jobs:
 
                 // Commit and push changes
                 execSync('git add .');
-                execSync('git commit -m "Merged PRs with current PR"');
+                execSync('git commit -m \"Merged PRs with current PR\"');
                 execSync('git push origin merge-temp');
 
                 console.log('Merge concluded successfully');
