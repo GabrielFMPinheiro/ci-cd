@@ -93,6 +93,11 @@ jobs:
                   }
                 }
 
+                const tempBranch = `staging-merge-${Date.now()}`;
+                execSync(`git checkout -b ${tempBranch}`);
+                execSync(`git push origin ${tempBranch}`);
+                console.log(`Merged state pushed to branch ${tempBranch}`);
+
                 console.log('Deployment completed successfully');
               } catch (error) {
                 console.error('Error during deployment:', error);
