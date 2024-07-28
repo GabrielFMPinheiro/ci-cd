@@ -50,7 +50,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ECR_REPO: ${{ secrets.ECR_REPO }}
         run: |
-          node -e "
+          echo "Starting deployment"
+          node << 'EOF'
             const { execSync } = require('child_process');
             const github = require('@actions/github');
             const axios = require('axios');
@@ -59,9 +60,9 @@ jobs:
               try {
                 // Fetch all PRs with the using:staging label
                 console.log('Fetching PRs with using:staging label');
-                const response = await axios.get('https://api.github.com/repos/${{ github.repository }}/pulls', {
+                const response = await axios.get(`https://api.github.com/repos/${{ github.repository }}/pulls`, {
                   headers: {
-                    Authorization: \`token ${process.env.GITHUB_TOKEN}\`,
+                    Authorization: `token ${process.env.GITHUB_TOKEN}`,
                     Accept: 'application/vnd.github.v3+json',
                   }
                 });
@@ -75,11 +76,12 @@ jobs:
                     execSync(`git merge pr-${pr.number} --no-commit`);
                     console.log(`Merged PR #${pr.number}`);
                   } catch (err) {
+                    console.error(`Conflict detected in PR #${pr.number}`, err);
                     await axios.post(`https://api.github.com/repos/${{ github.repository }}/issues/${pr.number}/comments`, {
                       body: 'Conflict detected during merge. Please resolve conflicts.'
                     }, {
                       headers: {
-                        Authorization: \`token ${process.env.GITHUB_TOKEN}\`,
+                        Authorization: `token ${process.env.GITHUB_TOKEN}`,
                         Accept: 'application/vnd.github.v3+json',
                       }
                     });
@@ -93,4 +95,4 @@ jobs:
                 process.exit(1);
               }
             })();
-          "
+          EOF
